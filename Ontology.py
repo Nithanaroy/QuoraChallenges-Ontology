@@ -107,23 +107,33 @@ class Ontology:
         node, sentence = query.split(":")
         self.t.insert_sentence(node.strip(), sentence.strip())
 
-    def find_queries(self, matching_to):
+    def find_query_count(self, matching_to):
         """
         Finds the count of matching queries to matching_to query passed
         :param matching_to: query to match with
         :return: count of matched queries
         """
         node, sep, query = matching_to.partition(" ")
-        return self.t.query(node, query)
+        q = deque()
+        q.append(node)
+        count = 0
+        while len(q) > 0:
+            c = q.popleft()
+            q.extend(self.t.treemap[c].children)
+            count += self.t.query(c, query)
+        return count
 
     def parse_flat_tree_helper(self, t, parent, words):
+        """
+        Saves the nodes in 'words' into the tree, t
+        :param t: instance of the tree to save the nodes to
+        :param parent: node name as string. Eg: Animals
+        :param words: deque(['Reptiles', 'Birds', '(', 'Eagles', 'Pigeons', 'Crows', ')', 'Mammals', '(', 'Elephant', 'Man', ')', ')'])
+        :return: None
+        """
         current_word = words.popleft()
         children = []
-        while len(words) > 0:
-            children.append(current_word)
-            t.add_node(current_word, [])  # add this parent node with zero children by default
-            previous_word = current_word
-            current_word = words.popleft()
+        while current_word:
             if current_word == "(":
                 self.parse_flat_tree_helper(t, previous_word, words)
                 current_word = words.popleft()
@@ -131,9 +141,45 @@ class Ontology:
                 if len(children) > 0:
                     t.add_node(parent, children)  # add the children to parent node created before
                 break  # reading the children of this parent is done
+            else:
+                children.append(current_word)
+                t.add_node(current_word, [])  # add this parent node with zero children by default
+                previous_word = current_word
+                try:
+                    current_word = words.popleft()
+                except IndexError:
+                    current_word = None
 
 
 def main():
+    o = Ontology()
+    flat_tree_size = int(raw_input())
+    flat_tree = raw_input()
+    o.parse_flat_tree(flat_tree)
+    given_query_count = int(raw_input())
+    for i in range(0, given_query_count):
+        o.save_query(raw_input())
+    query_count = int(raw_input())
+    for i in range(0, query_count):
+        print o.find_query_count(raw_input())
+    pass
+
+
+def test2():
+    o = Ontology()
+    o.parse_flat_tree("Animals ( Reptiles Birds ( Eagles Pigeons Crows ) Mammals ( Elephant Man ) )")
+    o.save_query("Reptiles: Why are many reptiles green?")
+    o.save_query("Birds: How do birds fly?")
+    o.save_query("Eagles: How endangered are eagles?")
+    o.save_query("Pigeons: Where in the world are pigeons most densely populated?")
+    o.save_query("Eagles: Where do most eagles live?")
+    print o.find_query_count("Eagles How en")
+    print o.find_query_count("Birds Where")
+    print o.find_query_count("Reptiles Why do")
+    print o.find_query_count("Animals Wh")
+
+
+def test():
     t = Tree()
     t.add_node("Fruit", ["Apple"])
     t.add_node("Fruit", ["Banana"])
@@ -151,21 +197,6 @@ def main():
     res = t.query("Fruit", "Appl")
     res = t.query("Fruit", "Apple")
     res = t.query("Banana", "Apple")
-
-    o = Ontology()
-    o.parse_flat_tree("Animals ( Reptiles Birds ( Eagles Pigeons Crows ) Mammals ( Elephant Man ) )")
-
-    o.save_query("Reptiles: Why are many reptiles green?")
-    o.save_query("Birds: How do birds fly?")
-    o.save_query("Eagles: How endangered are eagles?")
-    o.save_query("Pigeons: Where in the world are pigeons most densely populated?")
-    o.save_query("Eagles: Where do most eagles live?")
-
-    print o.find_queries("Eagles How en")
-    print o.find_queries("Birds Where")
-    print o.find_queries("Reptiles Why do")
-    print o.find_queries("Animals Wh")
-    pass
 
 
 if __name__ == '__main__':
